@@ -12,6 +12,8 @@ import java.security.KeyStore;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Bootstraps all services (Gateway and 1..N Workers) in a single VM.
@@ -21,8 +23,10 @@ import java.util.function.Consumer;
 public class SingleVMMain {
   private final Consumer<Exception> errorCallback;
   private ExecutorService executorService;
+  private final static Logger logger = LoggerFactory.getLogger(SingleVMMain.class);
 
   public static void main(String[] args) {
+    logger.debug("Starting SingleVMMain");
     Thread.setDefaultUncaughtExceptionHandler(UncaughtExceptionHandlers.systemExit());
 
     SingleVMMain singleVMMain = new SingleVMMain(SingleVMMain::exitError);
@@ -39,10 +43,12 @@ public class SingleVMMain {
   }
 
   public void initializeGateway() {
+    logger.debug("Initializing Gateway");
+
     ApiMain apiMain = new ApiMain();
 
     try (InputStream stream =
-        ReferenceApiServer.class.getClassLoader().getResourceAsStream("portability.keystore.jks")) {
+        SingleVMMain.class.getClassLoader().getResourceAsStream("portability.keystore.jks")) {
       if (stream == null) {
         throw new IllegalArgumentException("Demo keystore was not found");
       }
@@ -58,15 +64,18 @@ public class SingleVMMain {
       trustManagerFactory.init(keyStore);
 
       apiMain.initializeHttps(trustManagerFactory, keyManagerFactory);
-
+      logger.debug("Starting apiMain");
       apiMain.start();
 
     } catch (Exception e) {
+      logger.warn("Error occurred trying to start apiMain");
       errorCallback.accept(e);
     }
   }
 
   public void initializeWorkers(int workers) {
+    logger.debug("Initializing Workers");
+
     if (workers < 1) {
       errorCallback.accept(new IllegalArgumentException("Invalid number of workers: " + workers));
       return;
@@ -75,6 +84,7 @@ public class SingleVMMain {
     executorService = Executors.newFixedThreadPool(workers);
 
     for (int i = 0; i < workers; i++) {
+      logger.debug("Creating workerRunner");
       WorkerRunner workerRunner = new WorkerRunner();
       executorService.submit(workerRunner);
     }
@@ -88,7 +98,7 @@ public class SingleVMMain {
 
   private static void exitError(Exception exception) {
     exception.printStackTrace();
-    System.err.println("Exiting abnormally");
+    logger.warn("Exiting abnormally");
     System.exit(-1);
   }
 

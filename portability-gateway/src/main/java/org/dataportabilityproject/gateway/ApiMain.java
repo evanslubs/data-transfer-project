@@ -126,6 +126,7 @@ public class ApiMain {
   }
 
   public void start() throws Exception {
+    logger.debug("Starting server: {}", server.getClass().getName());
     server.start();
   }
 

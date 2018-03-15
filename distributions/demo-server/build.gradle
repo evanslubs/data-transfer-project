@@ -45,6 +45,7 @@ dependencies {
 
     compile project(':portability-gateway')
     compile project(':portability-worker')
+
     // TODO: depend on these based on list in flag values.
     compile project(':extensions:auth:portability-auth-microsoft')
 
@@ -59,7 +60,14 @@ task createSecretsFile() {
 
     doLast {
         def propFile = file("$buildDir/resources/main/secrets.properties")
-        propFile.delete()
+        if (propFile.exists()) {
+            propFile.delete()
+        }
+
+        println "propFile: ${propFile.getAbsolutePath()}";
+        propFile.getParentFile().mkdirs()
+        propFile.createNewFile()
+
         project.rootProject.ext.properties.each { key, val ->
             if (key.startsWith(CLIENT_ID_PREFIX) && key.length() > CLIENT_ID_PREFIX.length()) {
                 def keyPrefix = key.substring(CLIENT_ID_PREFIX.length()).toUpperCase();
